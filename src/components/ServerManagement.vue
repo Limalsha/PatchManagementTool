@@ -17,21 +17,25 @@
       </div>
 
       <table>
-        <thead>
-          <tr>
-            <th>IP Address</th>
-            <th>OS</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="server in serverStore.servers" :key="server.ip">
-            <td>{{ server.ip }}</td>
-            <td>{{ server.os }}</td>
-            <td>{{ server.status }}</td>
-          </tr>
-        </tbody>
-      </table>
+  <thead>
+    <tr>
+      <th>IP Address</th>
+      <th>OS</th>
+      <th>Version</th>
+      <th>Support End</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr v-for="server in serverStore.servers" :key="server.ip">
+      <td>{{ server.ip }}</td>
+      <td>{{ server.os }}</td>
+      <td>{{ server.version }}</td>
+      <td>{{ server.support_end }}</td>
+      <td>{{ server.status }}</td>
+    </tr>
+  </tbody>
+</table>
     </main>
   </div>
 </template>
@@ -41,17 +45,40 @@ import { ref } from "vue";
 import { useServerStore } from "@/store/useServerStore";
 
 export default {
+  name: "ServerManagement",
   setup() {
     const serverStore = useServerStore();
     const newServerIp = ref("");
 
-    const addServer = () => {
+    const addServer = async () => {
       if (!newServerIp.value) {
         alert("Enter a valid IP address!");
         return;
       }
-      serverStore.addServer(newServerIp.value);
-      newServerIp.value = "";
+
+      try {
+        // Fetch OS details from the client (Rocky Linux server)
+        const response = await fetch(`http://${newServerIp.value}:5000/get-os-info`);
+        const data = await response.json();
+
+        if (data.error) {
+          alert("Failed to fetch OS details.");
+          return;
+        }
+
+        serverStore.addServer({
+          ip: newServerIp.value,
+          os: data.name,
+          version: data.version_id,
+          support_end: data.support_end,
+          status: "Active",
+        });
+
+        newServerIp.value = "";
+      } catch (error) {
+        console.error("Error fetching OS details:", error);
+        alert("Failed to connect to the server.");
+      }
     };
 
     return { newServerIp, addServer, serverStore };
